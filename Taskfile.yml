@@ -1,0 +1,6 @@
+version: "3"
+
+tasks:
+  test:
+    cmd: nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedDirectory lua/tests/ { minimal_init = './scripts/minimal_init.vim' }"
+    # silent: true
