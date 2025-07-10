@@ -24,6 +24,7 @@ local github_headers = {
 
 local crd_url = (github_base_api_url .. "/" .. crd_catalog .. "/git/trees/" .. schema_catalog_branch)
 local resource_url = (github_base_api_url .. "/" .. resource_catalog .. "/contents" .. "/v" .. k8s_version .. "/")
+local cachedir = "/Users/aaronshifman/Documents/auto-k8s.nvim/cache"
 
 ---Fetch all json filepaths in the repo (blobs)
 ---File format is api_version(without /v1)/kind_version.json
@@ -112,24 +113,77 @@ M.find_definition_url = function(spec)
 		return "https://raw.githubusercontent.com/" .. crd_catalog .. "/" .. schema_catalog_branch .. "/" .. flat
 	elseif M.check_resource_validity(spec.kind) then
 		return "https://raw.githubusercontent.com/"
-			.. resource_catalog
-			.. "/refs/heads/"
-			.. resource_catalog_branch
-			.. "/v"
-			.. k8s_version
-			.. "/"
-			.. spec.kind:lower()
-			.. ".json"
+				.. resource_catalog
+				.. "/refs/heads/"
+				.. resource_catalog_branch
+				.. "/v"
+				.. k8s_version
+				.. "/"
+				.. spec.kind:lower()
+				.. ".json"
 	else
 		return nil
 	end
 end
 
+---Cache CRDS to disk
+---@param d string Cache directiory
+---@param crds table crds
+function cache_crds(d, crds)
+	local file, err = io.open(d .. "/crds", "w")
+	if not file then
+		error(err)
+	end
+	for _, path in ipairs(crds) do
+		file:write(path .. "\n")
+	end
+	file:flush()
+	file:close()
+end
+
+---Cache resources to disk
+---@param d string Cache directiory
+---@param resources table resources
+function cache_resources(d, resources)
+	local file, err = io.open(d .. "/res", "w")
+	if not file then
+		error(err)
+	end
+	for _, path in ipairs(resources) do
+		file:write(path .. "\n")
+	end
+	file:flush()
+	file:close()
+end
+
 -- TODO: this goes in init
--- TODO: cache this to disk + ttl
+-- TODO: ttl
 if M.schema_cache == nil then
 	M.schema_cache = {}
-	M.schema_cache.crds = fetch_names(crd_url, false)
-	M.schema_cache.resources = fetch_names(resource_url, true)
+	local file = io.open(cachedir .. "/crds", "r")
+	if file == nil then
+		M.schema_cache.crds = fetch_names(crd_url, false)
+		cache_crds(cachedir, M.schema_cache.crds)
+	else
+		t = {}
+		for line in file:lines() do
+			table.insert(t, line)
+		end
+		M.schema_cache.crds = t
+		file:close()
+	end
+
+	file = io.open(cachedir .. "/res", "r")
+	if file == nil then
+		M.schema_cache.resources = fetch_names(resource_url, true)
+		cache_resources(cachedir, M.schema_cache.resources)
+	else
+		t = {}
+		for line in file:lines() do
+			table.insert(t, line)
+		end
+		M.schema_cache.resources = t
+		file:close()
+	end
 end
 return M
