@@ -107,20 +107,24 @@ end
 ---@param spec file_spec
 ---@return string
 M.find_definition_url = function(spec)
+	if spec.api_version == nil or spec.kind == nil then
+		return
+	end
+
 	-- check crd
 	local flat = M.convert_crd_to_filepath(spec)
 	if M.check_crd_validity(flat) then
 		return "https://raw.githubusercontent.com/" .. crd_catalog .. "/" .. schema_catalog_branch .. "/" .. flat
 	elseif M.check_resource_validity(spec.kind) then
 		return "https://raw.githubusercontent.com/"
-				.. resource_catalog
-				.. "/refs/heads/"
-				.. resource_catalog_branch
-				.. "/v"
-				.. k8s_version
-				.. "/"
-				.. spec.kind:lower()
-				.. ".json"
+			.. resource_catalog
+			.. "/refs/heads/"
+			.. resource_catalog_branch
+			.. "/v"
+			.. k8s_version
+			.. "/"
+			.. spec.kind:lower()
+			.. ".json"
 	else
 		return nil
 	end
