@@ -1,46 +1,67 @@
 ---@diagnostic disable: undefined-global
 ---@diagnostic disable: undefined-field
 
-local autok8s = require("auto-k8s")
 local helpers = require("tests.helpers")
+local test_env = {}
 
 describe("auto-k8s.fetch-crds", function()
-	it("fetch-crds gets a bunch of crds", function()
-		local crd_list = autok8s.schema_cache.crds
-		assert.is.True(#crd_list > 100) -- not sure how many - but should be a "bunch"
-		assert.is.True(helpers.contains(crd_list, "postgresql.cnpg.io/cluster_v1.json"))
-		assert.is.False(helpers.contains(crd_list, "apps/deployment_v1.json"))
-	end)
+    before_each(function()
+        test_env.schema = require("auto-k8s.schema")
+        test_env.crd = require("auto-k8s.schema.crd")
+        test_env.resource = require("auto-k8s.schema.resource")
+        test_env.schema.init_cache()
+    end)
 
-	it("fetch-resources gets a bunch of resources", function()
-		local crd_list = autok8s.schema_cache.resources
-		assert.is.True(#crd_list > 100) -- not sure how many - but should be a "bunch"
-		assert.is.False(helpers.contains(crd_list, "postgresql.cnpg.io/cluster_v1.json"))
-		assert.is.True(helpers.contains(crd_list, "deployment.json"))
-	end)
+    it("fetch-crds gets a bunch of crds", function()
+        local crds = test_env.schema.cache.crds
+        assert.is.True(#crds > 100) -- not sure how many - but should be a "bunch"
+        assert.is.True(helpers.contains(crds, "postgresql.cnpg.io/cluster_v1.json"))
+        assert.is.False(helpers.contains(crds, "apps/deployment_v1.json"))
+    end)
+
+    it("fetch-resources gets a bunch of resources", function()
+        local resources = test_env.schema.cache.resources
+        assert.is.True(#resources > 100) -- not sure how many - but should be a "bunch"
+        assert.is.False(helpers.contains(resources, "postgresql.cnpg.io/cluster_v1.json"))
+        assert.is.True(helpers.contains(resources, "deployment.json"))
+    end)
 end)
 
 describe("auto-k8s.map-resource-to-crds", function()
-	it("CNPG is mappable", function()
-		assert.is.True(autok8s.check_crd_validity("postgresql.cnpg.io/cluster_v1.json"))
-	end)
-	it("Deployment not mappable", function()
-		assert.is.False(autok8s.check_crd_validity("apps/deployment_v1.json"))
-	end)
+    before_each(function()
+        test_env.schema = require("auto-k8s.schema")
+        test_env.crd = require("auto-k8s.schema.crd")
+        test_env.resource = require("auto-k8s.schema.resource")
+        test_env.schema.init_cache()
+    end)
+
+    it("CNPG is mappable", function()
+        assert.is.True(test_env.crd.check_crd_validity("postgresql.cnpg.io/cluster_v1.json", test_env.schema.cache.crds))
+    end)
+    it("Deployment not mappable", function()
+        assert.is.False(test_env.crd.check_crd_validity("apps/deployment_v1.json", test_env.schema.cache.crds))
+    end)
 end)
 
 describe("auto-k8s.map-resource-to-resource-description", function()
-	it("CNPG is not", function()
-		assert.is.False(autok8s.check_resource_validity("cluster"))
-	end)
-	it("Deployment is mappable", function()
-		assert.is.True(autok8s.check_resource_validity("deployment"))
-		assert.is.True(autok8s.check_resource_validity("Deployment"))
-	end)
-	it("Service is mappable", function()
-		assert.is.True(autok8s.check_resource_validity("service"))
-	end)
-	it("netpol is mappable", function()
-		assert.is.True(autok8s.check_resource_validity("networkpolicy"))
-	end)
+    before_each(function()
+        test_env.schema = require("auto-k8s.schema")
+        test_env.crd = require("auto-k8s.schema.crd")
+        test_env.resource = require("auto-k8s.schema.resource")
+        test_env.schema.init_cache()
+    end)
+
+    it("CNPG is not", function()
+        assert.is.False(test_env.resource.check_resource_validity("cluster", test_env.schema.cache.resources))
+    end)
+    it("Deployment is mappable", function()
+        assert.is.True(test_env.resource.check_resource_validity("deployment", test_env.schema.cache.resources))
+        assert.is.True(test_env.resource.check_resource_validity("Deployment", test_env.schema.cache.resources))
+    end)
+    it("Service is mappable", function()
+        assert.is.True(test_env.resource.check_resource_validity("service", test_env.schema.cache.resources))
+    end)
+    it("netpol is mappable", function()
+        assert.is.True(test_env.resource.check_resource_validity("networkpolicy", test_env.schema.cache.resources))
+    end)
 end)

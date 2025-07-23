@@ -35,12 +35,19 @@ vim.api.nvim_create_autocmd({ "LspAttach" }, {
 			return
 		end
 
-		local url = autok8s.find_definition_url(res)
+		local url = autok8s.find_definition_url(res.api_version, res.kind)
+		if url == nil then
+			return
+		end
+
+		if client.config.settings.yaml == nil then
+			client.config.settings.yaml = {
+				schemas = {},
+			}
+		end
 
 		client.config.settings.yaml.schemas["kubernetes"] = nil -- delete blanket K8 schemas
-		if url ~= nil then
-			client.config.settings.yaml.schemas[url] = vim.api.nvim_buf_get_name(args.buf)
-		end
+		client.config.settings.yaml.schemas[url] = vim.api.nvim_buf_get_name(args.buf)
 
 		client.notify("workspace/didChangeConfiguration", {
 			settings = client.config.settings,
