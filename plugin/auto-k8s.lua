@@ -10,6 +10,40 @@ local buffer_to_string = function(buf)
 	return table.concat(content, "\n")
 end
 
+local configure_yamlls = function(client, url, filename)
+	if client.config.settings.yaml == nil then
+		client.config.settings.yaml = {
+			schemas = {},
+		}
+	end
+
+	client.config.settings.yaml.schemas["kubernetes"] = nil -- delete blanket K8 schemas
+	client.config.settings.yaml.schemas[url] = filename
+	client.notify("workspace/didChangeConfiguration", {
+		settings = client.config.settings,
+	})
+end
+
+local configure_helmls = function(client, url, filename)
+	if client.settings["helm-ls"] == nil then
+		client.settings = {
+			["helm-ls"] = {
+				yamlls = {
+					config = {
+						schemas = {},
+					},
+				},
+			},
+		}
+	end
+
+	client.settings["helm-ls"].yamlls.config.schemas["kubernetes"] = nil -- delete blanket K8 schemas
+	client.settings["helm-ls"].yamlls.config.schemas[url] = filename
+	client.notify("workspace/didChangeConfiguration", {
+		settings = client.settings,
+	})
+end
+
 vim.api.nvim_create_user_command("WhatAmI", function()
 	local buf = buffer_to_string(0)
 	vim.print(autok8s.extract_resource_spec(buf))
@@ -22,9 +56,6 @@ vim.api.nvim_create_autocmd({ "LspAttach" }, {
 	callback = function(args)
 		local client = vim.lsp.get_client_by_id(args.data.client_id)
 		if client == nil then
-			return
-		end
-		if client.name ~= "yamlls" then
 			return
 		end
 
@@ -40,17 +71,12 @@ vim.api.nvim_create_autocmd({ "LspAttach" }, {
 			return
 		end
 
-		if client.config.settings.yaml == nil then
-			client.config.settings.yaml = {
-				schemas = {},
-			}
+		if client.name == "yamlls" then
+			configure_yamlls(client, url, vim.api.nvim_buf_get_name(args.buf))
 		end
 
-		client.config.settings.yaml.schemas["kubernetes"] = nil -- delete blanket K8 schemas
-		client.config.settings.yaml.schemas[url] = vim.api.nvim_buf_get_name(args.buf)
-
-		client.notify("workspace/didChangeConfiguration", {
-			settings = client.config.settings,
-		})
+		if client.name == "helm_ls" then
+			configure_helmls(client, url, vim.api.nvim_buf_get_name(args.buf))
+		end
 	end,
 })
